@@ -1,0 +1,34 @@
+From: lean <chenlin@fnnas.com>
+Subject: [PATCH] v3dv: report subsampled plane extents for single-plane views
+
+The common image view initializer retains the full multi-planar image extent.
+V3DV texture descriptors use the selected plane dimensions, but imageSize and
+textureSize uniforms use the unadjusted view extent. A chroma view of NV12
+therefore reports luma dimensions and normalized-coordinate scaling repeats
+only the upper-left portion of the chroma plane.
+
+Use the selected plane's mip dimensions for single-plane YCbCr views, while
+leaving combined YCbCr views and non-planar images unchanged.
+
+Signed-off-by: lean <chenlin@fnnas.com>
+
+--- a/src/broadcom/vulkan/v3dv_image.c
++++ b/src/broadcom/vulkan/v3dv_image.c
+@@ -772,6 +772,17 @@
+    /* At this point we should have at least one plane */
+    assert(iview->plane_count > 0);
+ 
++   /* The common view extent describes the full image. A single-plane view
++    * of a subsampled YCbCr image must instead report that plane's extent to
++    * imageSize/textureSize, matching its texture descriptor dimensions. */
++   if ((image->vk.aspects & any_plane_aspect) && iview->plane_count == 1) {
++      const uint8_t plane = iview->planes[0].image_plane;
++      iview->vk.extent.width = u_minify(image->planes[plane].width,
++                                      iview->vk.base_mip_level);
++      iview->vk.extent.height = u_minify(image->planes[plane].height,
++                                       iview->vk.base_mip_level);
++   }
++
+    const VkImageSubresourceRange *range = &pCreateInfo->subresourceRange;
+ 
+    /* If we have D24S8 format but the view only selects the stencil aspect
