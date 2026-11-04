@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mesa
 PKG_VERSION:=26.2.2
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=https://archive.mesa3d.org/
@@ -12,6 +12,7 @@ PKG_MAINTAINER:=Daniel Golle <daniel@makrotopia.org>
 PKG_LICENSE:=BSD-3-Clause
 
 PKG_INSTALL:=1
+PKG_BUILD_PARALLEL:=1
 
 MESA_PYTHON_BUILD_DEPENDS:=python3/host python-mako/host python-packaging/host \
 			   python-pycparser/host python-yaml/host
@@ -22,6 +23,7 @@ PKG_BUILD_DEPENDS:=$(MESA_PYTHON_BUILD_DEPENDS) glslang/host libva vulkan-header
 HOST_BUILD_DEPENDS:=$(MESA_PYTHON_BUILD_DEPENDS) spirv-tools/host MESA_USE_LLVM:llvm
 
 PKG_CONFIG_DEPENDS:= \
+	CONFIG_MESA_USE_LLVM \
 	CONFIG_PACKAGE_libmesa-amd \
 	CONFIG_PACKAGE_libmesa-intel \
 	CONFIG_PACKAGE_libmesa-tegra \
@@ -572,7 +574,7 @@ MESON_ARGS += \
 	-Dllvm=$(if $(CONFIG_MESA_USE_LLVM),en,dis)abled \
 	-Ddraw-use-llvm=$(if $(CONFIG_MESA_USE_LLVM),true,false) \
 	-Dmesa-clc=$(if $(CONFIG_MESA_USE_LLVM),system,auto) \
-	-Dprecomp-compiler=system \
+	-Dprecomp-compiler=$(if $(CONFIG_MESA_USE_LLVM),system,auto) \
 	-Dlegacy-wayland=bind-wayland-display
 
 ifeq ($(BUILD_VARIANT),amd)

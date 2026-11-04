@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=libdisplay-info
 PKG_VERSION:=0.4.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://gitlab.freedesktop.org/emersion/libdisplay-info/-/archive/$(PKG_VERSION)
@@ -22,7 +22,6 @@ define Package/libdisplay-info
   CATEGORY:=Libraries
   SUBMENU:=Video
   TITLE:=EDID and DisplayID library
-  DEPENDS:=+edid-decode
   URL:=https://gitlab.freedesktop.org/emersion/libdisplay-info
 endef
 
