@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=llvm-project
 PKG_VERSION:=23.1.1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).src.tar.xz
 PKG_SOURCE_URL:=https://github.com/llvm/llvm-project/releases/download/llvmorg-$(PKG_VERSION)
@@ -29,6 +29,9 @@ include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/host-build.mk
 include $(INCLUDE_DIR)/cmake.mk
 
+# Older CMake helpers build host tools directly in HOST_BUILD_DIR.
+HOST_CMAKE_BINARY_DIR ?= $(HOST_BUILD_DIR)
+
 define Download/spirv-llvm-translator
   FILE:=$(SPIRV_LLVM_TRANSLATOR_FILE)
   URL:=$(SPIRV_LLVM_TRANSLATOR_URL)
@@ -45,6 +48,7 @@ LLVM_MESA_PREFIX = llvm-mesa-$(PKG_VERSION).$(HOST_OS)-$(HOST_ARCH)
 CMAKE_HOST_INSTALL_PREFIX = $(STAGING_DIR_HOST)/$(LLVM_MESA_PREFIX)
 
 CMAKE_HOST_OPTIONS += \
+	-DCMAKE_INSTALL_PREFIX=$(CMAKE_HOST_INSTALL_PREFIX) \
 	-DBUILD_SHARED_LIBS=OFF \
 	-DCMAKE_SKIP_RPATH=OFF \
 	-DCOMPILER_RT_BUILD_SANITIZERS=OFF \
@@ -224,10 +228,10 @@ define Host/Install
 	for file in \
 		clang-diff clang-fuzzer-dictionary count FileCheck lli-child-target \
 		llvm-isel-fuzzer llvm-jitlink-executor llvm-lit llvm-locstats llvm-min-tblgen \
-		llvm-opt-fuzzer llvm-PerfectShuffle not obj2yaml prepare_builtins split-file \
+		llvm-opt-fuzzer llvm-PerfectShuffle not obj2yaml split-file \
 		UnicodeNameMappingGenerator yaml2obj yaml-bench \
 		; do \
-		$(INSTALL_BIN) $(HOST_BUILD_DIR)/build/bin/$$$${file} $(CMAKE_HOST_INSTALL_PREFIX)/bin ; \
+		$(INSTALL_BIN) $(HOST_CMAKE_BINARY_DIR)/bin/$$$${file} $(CMAKE_HOST_INSTALL_PREFIX)/bin ; \
 	done
 	ln -s $(LLVM_MESA_PREFIX) $(STAGING_DIR_HOST)/llvm-mesa
 	STRIP_KMOD= PATCHELF= STRIP=strip $(SCRIPT_DIR)/rstrip.sh $(STAGING_DIR_HOST)/llvm-mesa
