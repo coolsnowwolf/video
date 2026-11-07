@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mesa
 PKG_VERSION:=26.2.2
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=https://archive.mesa3d.org/
@@ -96,17 +96,21 @@ config MESA_USE_LLVM
 	  cost of losing the LLVM-using variants.
 endef
 
+LIBMESA_PROVIDERS:=
+
 define Package/libmesa/Default
 $(call Package/mesa/Default)
   DEPENDS+=+libstdcpp +zlib +libdrm +libsensors +libwayland +libzstd \
            +wayland-protocols
   PROVIDES:=libmesa
+  CONFLICTS:=$(LIBMESA_PROVIDERS)
+  LIBMESA_PROVIDERS+=$(1)
   TITLE+= OpenGL and friends
 endef
 
 
 define Package/libmesa-amd
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   TITLE+= (AMD)
   DEPENDS+=accel-support +libdrm-amdgpu +libdrm-radeon +libelf @MESA_USE_LLVM
   VARIANT:=amd
@@ -131,7 +135,7 @@ later. It's officially supported by AMD.
 endef
 
 define Package/libmesa-intel
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   DEPENDS+=accel-support +libdrm-intel @(i386||i686||x86_64) @MESA_USE_LLVM
   TITLE+= (Intel)
   VARIANT:=intel
@@ -159,7 +163,7 @@ endef
 
 
 define Package/libmesa-tegra
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   DEPENDS+=accel-support +libdrm-tegra @(aarch64||arm) @MESA_USE_LLVM
   TITLE+= (NVIDIA Tegra)
   VARIANT:=tegra
@@ -173,7 +177,7 @@ endef
 
 
 define Package/libmesa-etnaviv
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   DEPENDS+=accel-support +libdrm-etnaviv @(aarch64||arm||mips||mips64||mipsel||mips64el||riscv64)
   TITLE+= (Vivante)
   VARIANT:=etnaviv
@@ -187,7 +191,7 @@ endef
 
 
 define Package/libmesa-nouveau
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   DEPENDS+=accel-support +libdrm-nouveau @MESA_USE_LLVM
   TITLE+= (NVIDIA)
   VARIANT:=nouveau
@@ -202,7 +206,7 @@ endef
 
 
 define Package/libmesa-broadcom
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   TITLE+= (Broadcom)
   VARIANT:=broadcom
   DEPENDS+=accel-support +libarchive @(aarch64||arm) @HAS_FPU
@@ -224,7 +228,7 @@ endef
 
 
 define Package/libmesa-lima
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   TITLE+= (ARM Mali Utgard)
   VARIANT:=lima
   DEPENDS+=accel-support @(aarch64||arm)
@@ -247,7 +251,7 @@ endef
 
 
 define Package/libmesa-panfrost
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   TITLE+= (ARM Mali Midgard and later)
   VARIANT:=panfrost
   DEPENDS+=accel-support @(aarch64||arm) @MESA_USE_LLVM
@@ -272,7 +276,7 @@ endef
 
 
 define Package/libmesa-virgl
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   TITLE+= (VirtIO GL)
   VARIANT:=virgl
   DEPENDS+=accel-support
@@ -287,7 +291,7 @@ endef
 
 
 define Package/libmesa-zink
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   TITLE+= (Zink GL via Vulkan)
   VARIANT:=vulkan
   DEPENDS+=accel-support @MESA_USE_LLVM
@@ -301,7 +305,7 @@ endef
 
 
 define Package/libmesa-softpipe
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   TITLE+= (Softpipe)
   VARIANT:=softpipe
   DEFAULT_VARIANT:=1
@@ -314,7 +318,7 @@ support for LLVM.
 endef
 
 define Package/libmesa-llvmpipe
-$(call Package/libmesa/Default)
+$(call Package/libmesa/Default,$(1))
   TITLE+= (LLVMpipe)
   DEPENDS+=@MESA_USE_LLVM
   VARIANT:=llvmpipe
@@ -854,8 +858,8 @@ $(eval $(call BuildPackage,libmesa-lima))
 $(eval $(call BuildPackage,libmesa-panfrost))
 $(eval $(call BuildPackage,libmesa-virgl))
 $(eval $(call BuildPackage,libmesa-zink))
-$(eval $(call BuildPackage,libmesa-softpipe))
 $(eval $(call BuildPackage,libmesa-llvmpipe))
+$(eval $(call BuildPackage,libmesa-softpipe))
 $(eval $(call BuildPackage,libvulkan-broadcom))
 $(eval $(call BuildPackage,libvulkan-imagination))
 $(eval $(call BuildPackage,libvulkan-intel))
