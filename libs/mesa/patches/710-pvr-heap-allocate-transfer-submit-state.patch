@@ -1,0 +1,92 @@
+From: lean <chenlin@fnnas.com>
+Subject: [PATCH] pvr: allocate large transfer submit state on the heap
+
+The transfer submit object uses around 380 KiB on the stack. Vulkan
+transfers from FFmpeg worker threads overflow musl's default thread
+stack on A733 and crash in the initial memset before GPU submission.
+Allocate the command preparation state with the Vulkan allocator and
+release it on every return path.
+
+Signed-off-by: lean <chenlin@fnnas.com>
+---
+--- a/src/imagination/vulkan/pvr_arch_job_transfer.c
++++ b/src/imagination/vulkan/pvr_arch_job_transfer.c
+@@ -5952,10 +5952,10 @@
+ {
+    struct pvr_transfer_prep_data *prep_data = NULL;
+    struct pvr_transfer_prep_data *prev_prep_data;
+-   struct pvr_transfer_submit submit = { 0U };
++   struct pvr_transfer_submit *submit;
+    bool finished = false;
+    uint32_t pass = 0U;
+-   VkResult result;
++   VkResult result = VK_SUCCESS;
+ 
+    /* Transfer queue might decide to do a blit in multiple passes. When the
+     * prepare doesn't set the finished flag this code will keep calling the
+@@ -5977,16 +5977,26 @@
+     * S/U   : update / server sync update point
+     */
+ 
++   /* Transfer preparation can exceed musl's default worker stack size. */
++   submit = vk_zalloc(&ctx->device->vk.alloc,
++                      sizeof(*submit),
++                      8,
++                      VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
++   if (!submit)
++      return vk_error(ctx->device, VK_ERROR_OUT_OF_HOST_MEMORY);
++
+    while (!finished) {
+       prev_prep_data = prep_data;
+-      prep_data = &submit.prep_array[submit.prep_count++];
++      prep_data = &submit->prep_array[submit->prep_count++];
+ 
+       /* Clear down the memory before we write to this prep. */
+       memset(prep_data, 0U, sizeof(*prep_data));
+ 
+       if (pass == 0U) {
+-         if (!pvr_3d_validate_addr(transfer_cmd))
+-            return vk_error(ctx->device, VK_ERROR_FEATURE_NOT_PRESENT);
++         if (!pvr_3d_validate_addr(transfer_cmd)) {
++            result = vk_error(ctx->device, VK_ERROR_FEATURE_NOT_PRESENT);
++            goto out;
++         }
+       } else {
+          /* Transfer queue workarounds could use more than one pass with 3D
+           * path.
+@@ -6002,26 +6012,28 @@
+             pvr_3d_copy_blit(ctx, transfer_cmd, prep_data, pass, &finished);
+       }
+       if (result != VK_SUCCESS)
+-         return result;
++         goto out;
+ 
+       /* Submit if we have finished the blit or if we are out of prepares. */
+-      if (finished || submit.prep_count == ARRAY_SIZE(submit.prep_array)) {
++      if (finished || submit->prep_count == ARRAY_SIZE(submit->prep_array)) {
+          result = pvr_submit_transfer(ctx,
+-                                      &submit,
++                                      submit,
+                                       wait,
+                                       finished ? signal_sync : NULL);
+          if (result != VK_SUCCESS)
+-            return result;
++            goto out;
+ 
+          /* Check if we need to reset prep_count. */
+-         if (submit.prep_count == ARRAY_SIZE(submit.prep_array))
+-            submit.prep_count = 0U;
++         if (submit->prep_count == ARRAY_SIZE(submit->prep_array))
++            submit->prep_count = 0U;
+       }
+ 
+       pass++;
+    }
+ 
+-   return VK_SUCCESS;
++out:
++   vk_free(&ctx->device->vk.alloc, submit);
++   return result;
+ }
+ 
+ VkResult pvr_arch_transfer_job_submit(struct pvr_transfer_ctx *ctx,
